@@ -75,12 +75,12 @@ public class HttpHelp {
         });
     }
  Gson gson=new Gson();
-    public void getAccountInfo(String id) {
+    public void getAccountInfo(String ordersn) {
         Map<String, String> map = new HashMap();
         map.put("serverid", "1");
-        map.put("ordersn", "202204241402116-1-UXRRDTXFK7OEKY");
+        map.put("ordersn", ordersn);
         map.put("view_loc", "search_cond");
-        map.put("page_session_id", id);
+        map.put("page_session_id", pageSessionId);
         Call<AccountInfoBeans> call = getRetrofit().getAccountInfo(map);
 //        try {
 //            accountInfoBeanUtils.addBean(call.execute().body());
