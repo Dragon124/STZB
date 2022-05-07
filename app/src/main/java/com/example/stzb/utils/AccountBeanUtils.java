@@ -11,17 +11,17 @@ import java.util.List;
  * other:
  */
 public class AccountBeanUtils {
-    public static List<ResultBean> historyBeans = new ArrayList<>();
+    public static List<ResultBean> AccountBeans = new ArrayList<>();
 
     public static void addBeans(List<ResultBean> beans) {
-        historyBeans.addAll(beans);
+        AccountBeans.addAll(beans);
     }
 
     public static void clear() {
-        historyBeans.clear();
+        AccountBeans.clear();
     }
 
     public static int size(){
-        return historyBeans.size();
+        return AccountBeans.size();
     }
 }

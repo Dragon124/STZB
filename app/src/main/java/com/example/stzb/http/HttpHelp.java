@@ -3,6 +3,7 @@ package com.example.stzb.http;
 
 import android.util.Log;
 
+import com.example.stzb.MainCallBack;
 import com.example.stzb.beans.AccountBeans;
 import com.example.stzb.beans.AccountInfoBeans;
 import com.example.stzb.utils.AccountBeanUtils;
@@ -10,9 +11,14 @@ import com.example.stzb.utils.AccountInfoBeanUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -32,9 +38,13 @@ import static java.lang.Thread.sleep;
  */
 public class HttpHelp {
     public String pageSessionId = "01809D05-259B-0089-D0EF-858F52582C50&";
-    public AccountInfoBeanUtils accountInfoBeanUtils = new AccountInfoBeanUtils();
     RetrofitService service;
     private static HttpHelp httpHelp = new HttpHelp();
+    private MainCallBack mainCallBack;
+
+    public void setMainCallBack(MainCallBack mainCallBack) {
+        this.mainCallBack = mainCallBack;
+    }
 
     public static HttpHelp getInstance() {
         return httpHelp;
@@ -45,8 +55,9 @@ public class HttpHelp {
         getHistory(1);
     }
 
+    //获取前十页的账号详细
     private void getHistory(int page) {
-        accountInfoBeanUtils.clear();
+        AccountInfoBeanUtils.clear();
         Call<AccountBeans> call = getRetrofit().getAccounts(System.currentTimeMillis() + "", page + "", pageSessionId);
         call.enqueue(new Callback<AccountBeans>() {
             @Override
@@ -54,10 +65,11 @@ public class HttpHelp {
                 AccountBeans beans = response.body();
                 if (beans.status == 6) {
                     Log.e("123", "验证手机");
+                    return;
                 }
                 AccountBeanUtils.addBeans(beans.result);
-                if (page == 10 || beans.paging.is_last_page) {
-                    accountInfoBeanUtils.getAccountInfo();
+                if (page == 11 || beans.paging.is_last_page) {
+                    getAccountInfoList();
                     return;
                 }
                 try {
@@ -74,7 +86,10 @@ public class HttpHelp {
             }
         });
     }
- Gson gson=new Gson();
+
+    Gson gson = new Gson();
+
+    //获取账号详细信息
     public void getAccountInfo(String ordersn) {
         Map<String, String> map = new HashMap();
         map.put("serverid", "1");
@@ -91,7 +106,7 @@ public class HttpHelp {
             @Override
             public void onResponse(Call<AccountInfoBeans> call, Response<AccountInfoBeans> response) {
 //                accountInfoBeanUtils.addBean(response.body());
-                Log.e("123",gson.fromJson(response.body().equip.equip_desc, JsonObject.class).getAsJsonObject("tenure").toString());
+                Log.e("123", gson.fromJson(response.body().equip.equip_desc, JsonObject.class).getAsJsonObject("tenure").toString());
             }
 
             @Override
@@ -99,6 +114,42 @@ public class HttpHelp {
                 t.printStackTrace();
             }
         });
+    }
+
+    //遍历所有账号,获取信息信息
+    public void getAccountInfoList() {
+        List<Future<?>> futures = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        for (AccountBeans.ResultBean historyBean : AccountBeanUtils.AccountBeans) {
+//            executor.execute();
+            futures.add(executor.submit(() -> {
+                try {
+                    sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                getAccountInfo(historyBean.game_ordersn);
+            }));
+        }
+
+        try {
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        for (AccountInfoBeans historyBean : AccountInfoBeanUtils.AccountInfoBeans) {
+            try {
+//                Log.e("123", "玉符:" + historyBean.equip.equip_desc.tenure.hufu + "  虎符" + historyBean.equip.equip_desc.tenure.yuan_bao);
+            } catch (Exception e) {
+                Log.e("123", "出错");
+            }
+
+        }
+        executor.shutdown();
     }
 
     private RetrofitService getRetrofit() {
