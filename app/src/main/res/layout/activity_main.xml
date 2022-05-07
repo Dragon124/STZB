@@ -41,4 +41,9 @@
         android:layout_width="match_parent"
         android:layout_height="0.1px"
         android:background="@color/color_b4b4b4" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </LinearLayout>

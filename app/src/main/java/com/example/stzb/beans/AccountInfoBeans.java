@@ -8,12 +8,10 @@ package com.example.stzb.beans;
 public class AccountInfoBeans {
     public EquipBean equip;
 
-    public class EquipBean{
+    public class EquipBean {
         public String equip_desc;
     }
 
-    public class TenureBean{
-        public String hufu;
-        public String yuan_bao;
-    }
+    public String hufu;
+    public String yuan_bao;
 }
