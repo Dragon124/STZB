@@ -8,10 +8,12 @@ package com.example.stzb.beans;
 public class AccountInfoBeans {
     public EquipBean equip;
     public long time;
+
     public class EquipBean {
         public String equip_desc;
         public String fair_show_end_time;
         public int collect_num;
+        public int price;
     }
 
     public long getTime() {

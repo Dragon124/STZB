@@ -156,7 +156,7 @@ public class HttpHelp {
         }
         //遍历打印信息
         for (AccountInfoBeans bean : AccountInfoBeanUtils.AccountInfoBeans) {
-            Log.e("信息", " 虎符:" + bean.hufu + " 玉符:" + bean.yufu + " 时间:" + bean.equip.fair_show_end_time + " 收藏:" + bean.equip.collect_num);
+            Log.e("信息", " 虎符:" + bean.hufu + " 玉符:" + bean.yufu + " 时间:" + bean.equip.fair_show_end_time + " 收藏:" + bean.equip.collect_num + " 价格:" + bean.equip.price/100);
         }
         executor.shutdown();
     }
