@@ -8,13 +8,18 @@ import com.example.stzb.beans.AccountBeans;
 import com.example.stzb.beans.AccountInfoBeans;
 import com.example.stzb.utils.AccountBeanUtils;
 import com.example.stzb.utils.AccountInfoBeanUtils;
+import com.example.stzb.utils.Config;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,7 +42,6 @@ import static java.lang.Thread.sleep;
  * other:
  */
 public class HttpHelp {
-    public String pageSessionId = "01809D05-259B-0089-D0EF-858F52582C50&";
     RetrofitService service;
     private static HttpHelp httpHelp = new HttpHelp();
     private MainCallBack mainCallBack;
@@ -58,7 +62,7 @@ public class HttpHelp {
     //获取前十页的账号详细
     private void getHistory(int page) {
         AccountInfoBeanUtils.clear();
-        Call<AccountBeans> call = getRetrofit().getAccounts(System.currentTimeMillis() + "", page + "", pageSessionId);
+        Call<AccountBeans> call = getRetrofit().getAccounts(System.currentTimeMillis() + "", page + "", Config.pageSessionId);
         call.enqueue(new Callback<AccountBeans>() {
             @Override
             public void onResponse(Call<AccountBeans> call, Response<AccountBeans> response) {
@@ -68,7 +72,7 @@ public class HttpHelp {
                     return;
                 }
                 AccountBeanUtils.addBeans(beans.result);
-                if (page == 11 || beans.paging.is_last_page) {
+                if (page == 15 || beans.paging.is_last_page) {
                     getAccountInfoList();
                     return;
                 }
@@ -95,59 +99,71 @@ public class HttpHelp {
         map.put("serverid", "1");
         map.put("ordersn", ordersn);
         map.put("view_loc", "search_cond");
-        map.put("page_session_id", pageSessionId);
+        map.put("page_session_id", Config.pageSessionId);
         Call<AccountInfoBeans> call = getRetrofit().getAccountInfo(map);
-//        try {
-//            accountInfoBeanUtils.addBean(call.execute().body());
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-        call.enqueue(new Callback<AccountInfoBeans>() {
-            @Override
-            public void onResponse(Call<AccountInfoBeans> call, Response<AccountInfoBeans> response) {
-//                accountInfoBeanUtils.addBean(response.body());
-                Log.e("123", gson.fromJson(response.body().equip.equip_desc, JsonObject.class).getAsJsonObject("tenure").toString());
-            }
+        try {
+            addAccountInfo(call.execute().body());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-            @Override
-            public void onFailure(Call<AccountInfoBeans> call, Throwable t) {
-                t.printStackTrace();
+    private SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+
+    private void addAccountInfo(AccountInfoBeans bean) {
+        if (bean == null) {
+            Log.e("stzb", "数据为空");
+            return;
+        }
+        try {
+            bean.time = simpleDateFormat.parse(bean.equip.fair_show_end_time).getTime();
+            //小于当前时间跳过
+            if (bean.time < System.currentTimeMillis()) {
+                return;
             }
-        });
+            JsonObject jsonObject = gson.fromJson(bean.equip.equip_desc, JsonObject.class).getAsJsonObject("tenure");
+            bean.hufu = jsonObject.getAsJsonPrimitive("hufu").toString();
+            bean.yufu = jsonObject.getAsJsonPrimitive("bind_yuan_bao").toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        AccountInfoBeanUtils.AccountInfoBeans.add(bean);
     }
 
     //遍历所有账号,获取信息信息
     public void getAccountInfoList() {
-        List<Future<?>> futures = new ArrayList<>();
+        List<Future<Object>> futures = new ArrayList<>();
         ExecutorService executor = Executors.newFixedThreadPool(3);
+        List<Callable<Object>> tasks = new ArrayList<Callable<Object>>();
         for (AccountBeans.ResultBean historyBean : AccountBeanUtils.AccountBeans) {
-//            executor.execute();
-            futures.add(executor.submit(() -> {
+            tasks.add(() -> {
                 try {
                     sleep(2000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 getAccountInfo(historyBean.game_ordersn);
-            }));
+                return null;
+            });
         }
-
         try {
-            for (Future<?> future : futures) {
+            futures = executor.invokeAll(tasks);
+            for (Future<Object> future : futures) {
                 future.get();
             }
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        for (AccountInfoBeans historyBean : AccountInfoBeanUtils.AccountInfoBeans) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            Comparator<AccountInfoBeans> nameComparator = Comparator.comparing(AccountInfoBeans::getTime);
+            AccountInfoBeanUtils.AccountInfoBeans.sort(nameComparator);
+        }
+        for (AccountInfoBeans bean : AccountInfoBeanUtils.AccountInfoBeans) {
             try {
-//                Log.e("123", "玉符:" + historyBean.equip.equip_desc.tenure.hufu + "  虎符" + historyBean.equip.equip_desc.tenure.yuan_bao);
+                Log.e("信息", " 虎符:" + bean.hufu + " 玉符:" + bean.yufu + " 时间:" + bean.equip.fair_show_end_time + " 收藏:" + bean.equip.collect_num);
             } catch (Exception e) {
                 Log.e("123", "出错");
             }
-
         }
         executor.shutdown();
     }
@@ -176,7 +192,8 @@ public class HttpHelp {
                             .addHeader("Accept-Encoding", "gzip, deflate, br")
                             .addHeader("Accept-Language", "zh-CN,zh;q=0.9")
                             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36")
-                            .addHeader("Cookie", "UM_distinctid=1805ac294eb935-0697bbb4300909-521e311e-1fa400-1805ac294ecd51; fingerprint=rnplk4vitulj7euo; _ga=GA1.2.1287286381.1651027817; _ns=NS1.2.258598176.1651037439; mp_MA-B9D6-269DF3E58055_hubble=%7B%22sessionReferrer%22%3A%20%22https%3A%2F%2Fepay.163.com%2Faccount%2FsecureSetting.htm%22%2C%22updatedTime%22%3A%201651108721760%2C%22sessionStartTime%22%3A%201651108628261%2C%22sendNumClass%22%3A%20%7B%22allNum%22%3A%206%2C%22errSendNum%22%3A%200%7D%2C%22deviceUdid%22%3A%20%22bc3498fae70d2c46d5ac6177fd539dc0e20dd1fd%22%2C%22persistedTime%22%3A%201651038954588%2C%22LASTEVENT%22%3A%20%7B%22eventId%22%3A%20%22da_screen%22%2C%22time%22%3A%201651108721761%7D%2C%22currentReferrer%22%3A%20%22https%3A%2F%2Fepay.163.com%2FpcMain%2Faccount%2Fsafe-question%2Fstep1%22%2C%22sessionUuid%22%3A%20%228ea7205a04ef303741f6b52fd6e6b74f64ed78c4%22%7D; trace_session_id=01809C1C-EB41-CC9C-1114-1800ED955B7D; _flow_group=g9; _external_mark=direct; is_log_active_stat=1; NTES_YD_SESS=9T8eR5rFfO8l4cjL8X_4tBCR3eVw4ipHnKAH79mEGMDErPh.QAcwBDLPat4I06epNFeawtzOp65HJOdH9StTqWAftJpnlQtZ6DAcePidEnody7.ftOFCIvcaGXREmgxNojgK2X.x3L8jKCtpWrPz3Y3IV0aOt25xmBABhZ6o5S.0b6gN1IM.ko7XeHemMasD9RkAF0GwuJs4qW3Wu5P57MGehfNZ.5JYa2heMKlXqDtcT; NTES_YD_PASSPORT=qAI6JqzAg02UE_546EcRzFl3BAZgaQeQNeGd9UUIiHwxRYNr78A0QW3Y9SIVoOZqP5Z90SKcqOynkcRPpUR0nHcJhAHvoOoXXrDeJHPGh3J1ai6If3AkB78ldyrc.nHfAmjHf_qSVG_Dn86FNHp8TfpK40kqqvNyitUloTTs1olN_q8iJLY6uD4eHBxEv_kPCL_KpOPGx2ankeOolknQJXTLo; S_INFO=1651901748|0|0&60##|13672708263; P_INFO=13672708263|1651901748|1|cbg|00&99|sic&1651898153&g10_client#sic&510100#10#0#0|&0|null|13672708263; sid=zG6gBpJk5O6bJmU3VfOx22sSDwf3ir_L7c1LT7IE; urs_share_login_token=yd.3db8930ec6e5482fb@163.com$9d90849611843cd8620e0d3d7fc0fd98; urs_share_login_token_h5=yd.3db8930ec6e5482fb@163.com$9d90849611843cd8620e0d3d7fc0fd98; login_id=8d4b7e33-cdc7-11ec-9765-b9700a3c7b38")
+                            .addHeader("X-Requested-With", "XMLHttpRequest")
+                            .addHeader("Cookie", Config.cookie)
                             .build();
                     return chain.proceed(request);
                 })
