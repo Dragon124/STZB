@@ -15,17 +15,8 @@ import static java.lang.Thread.sleep;
 public class AccountInfoBeanUtils {
     public static List<AccountInfoBeans> AccountInfoBeans = new ArrayList<>();
 
-    public static void addBean(AccountInfoBeans beans) {
-        AccountInfoBeans.add(beans);
-    }
-
     public static void clear() {
         AccountInfoBeans.clear();
     }
-
-    public static int size() {
-        return AccountInfoBeans.size();
-    }
-
 
 }

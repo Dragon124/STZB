@@ -8,6 +8,7 @@ import com.example.stzb.beans.AccountBeans;
 import com.example.stzb.beans.AccountInfoBeans;
 import com.example.stzb.utils.AccountBeanUtils;
 import com.example.stzb.utils.AccountInfoBeanUtils;
+import com.example.stzb.utils.AccountUtils;
 import com.example.stzb.utils.Config;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -68,7 +69,7 @@ public class HttpHelp {
             public void onResponse(Call<AccountBeans> call, Response<AccountBeans> response) {
                 AccountBeans beans = response.body();
                 if (beans.status == 6) {
-                    Log.e("123", "验证手机");
+                    Log.e("信息", "验证手机");
                     return;
                 }
                 AccountBeanUtils.addBeans(beans.result);
@@ -112,22 +113,21 @@ public class HttpHelp {
 
     private void addAccountInfo(AccountInfoBeans bean) {
         if (bean == null) {
-            Log.e("stzb", "数据为空");
+            Log.e("信息", "数据为空");
             return;
         }
         try {
             bean.time = simpleDateFormat.parse(bean.equip.fair_show_end_time).getTime();
-            //小于当前时间跳过
-            if (bean.time < System.currentTimeMillis()) {
-                return;
-            }
             JsonObject jsonObject = gson.fromJson(bean.equip.equip_desc, JsonObject.class).getAsJsonObject("tenure");
-            bean.hufu = jsonObject.getAsJsonPrimitive("hufu").toString();
-            bean.yufu = jsonObject.getAsJsonPrimitive("bind_yuan_bao").toString();
+            bean.hufu = jsonObject.getAsJsonPrimitive("hufu").getAsInt();
+            bean.yufu = jsonObject.getAsJsonPrimitive("bind_yuan_bao").getAsInt();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        AccountInfoBeanUtils.AccountInfoBeans.add(bean);
+        //符合条件添加到集合
+        if (AccountUtils.checkInfo(bean)) {
+            AccountInfoBeanUtils.AccountInfoBeans.add(bean);
+        }
     }
 
     //遍历所有账号,获取信息信息
@@ -137,11 +137,7 @@ public class HttpHelp {
         List<Callable<Object>> tasks = new ArrayList<Callable<Object>>();
         for (AccountBeans.ResultBean historyBean : AccountBeanUtils.AccountBeans) {
             tasks.add(() -> {
-                try {
-                    sleep(2000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                sleep(2000);
                 getAccountInfo(historyBean.game_ordersn);
                 return null;
             });
@@ -158,12 +154,9 @@ public class HttpHelp {
             Comparator<AccountInfoBeans> nameComparator = Comparator.comparing(AccountInfoBeans::getTime);
             AccountInfoBeanUtils.AccountInfoBeans.sort(nameComparator);
         }
+        //遍历打印信息
         for (AccountInfoBeans bean : AccountInfoBeanUtils.AccountInfoBeans) {
-            try {
-                Log.e("信息", " 虎符:" + bean.hufu + " 玉符:" + bean.yufu + " 时间:" + bean.equip.fair_show_end_time + " 收藏:" + bean.equip.collect_num);
-            } catch (Exception e) {
-                Log.e("123", "出错");
-            }
+            Log.e("信息", " 虎符:" + bean.hufu + " 玉符:" + bean.yufu + " 时间:" + bean.equip.fair_show_end_time + " 收藏:" + bean.equip.collect_num);
         }
         executor.shutdown();
     }

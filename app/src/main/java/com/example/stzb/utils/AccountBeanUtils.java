@@ -21,7 +21,4 @@ public class AccountBeanUtils {
         AccountBeans.clear();
     }
 
-    public static int size(){
-        return AccountBeans.size();
-    }
 }

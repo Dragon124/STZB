@@ -11,13 +11,13 @@ public class AccountInfoBeans {
     public class EquipBean {
         public String equip_desc;
         public String fair_show_end_time;
-        public String collect_num;
+        public int collect_num;
     }
 
     public long getTime() {
         return time;
     }
 
-    public String hufu;
-    public String yufu;
+    public int hufu;
+    public int yufu;
 }
